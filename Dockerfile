@@ -1,22 +1,18 @@
-# Use Python base image
 FROM python:3.11-slim
 
-# Install tesseract and other packages
-RUN apt-get update && \
-    apt-get install -y tesseract-ocr && \
-    apt-get clean
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    libglib2.0-0 \
+    libsm6 \
+    libxrender1 \
+    libxext6 \
+    && apt-get clean
 
-# Set working directory
 WORKDIR /app
+COPY . /app
 
-# Copy files
-COPY . .
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Expose port (Render uses 10000+)
-EXPOSE 10000
-
-# Run the app
-CMD ["gunicorn", "--bind", "0.0.0.0:10000", "app:app"]
+EXPOSE 5000
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
