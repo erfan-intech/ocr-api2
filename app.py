@@ -1,44 +1,43 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import base64
-import io
-from PIL import Image
 import pytesseract
+import numpy as np
+import cv2
+import base64
+from PIL import Image
+import io
+
+pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 app = Flask(__name__)
-CORS(app)  # Enable cross-origin requests
+CORS(app)
 
-@app.route("/")
-def home():
-    return "OCR API is working"
+def read_image(base64_image):
+    image_data = base64.b64decode(base64_image.split(",")[1])
+    image = Image.open(io.BytesIO(image_data))
+    return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
 @app.route("/ocr", methods=["POST"])
 def ocr():
-    data = request.get_json()
-
-    if not data or "image" not in data:
-        return jsonify({"error": "No image provided"}), 400
-
     try:
-        base64_image = data["image"].split(",")[1]
-        image_data = base64.b64decode(base64_image)
-        image = Image.open(io.BytesIO(image_data))
-        text = pytesseract.image_to_string(image)
+        data = request.get_json()
+        image = read_image(data["image"])
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        text = pytesseract.image_to_string(gray)
 
-        # Basic parsing logic (adjust as needed)
-        lines = text.strip().split("\n")
-        lines = [line.strip() for line in lines if line.strip()]
-        if not lines:
-            return jsonify({"name": "", "qty": 0})
-
-        name = lines[0]
-        qty = 1
-        for word in reversed(lines[-1].split()):
-            if word.isdigit():
-                qty = int(word)
-                break
-
-        return jsonify({"name": name, "qty": qty})
-
+        lines = text.split("\n")
+        medicine_name = ""
+        qty = 0
+        for line in lines:
+            if len(line.strip()) > 3 and medicine_name == "":
+                medicine_name = line.strip()
+            if any(c.isdigit() for c in line):
+                numbers = [int(s) for s in line.split() if s.isdigit()]
+                if numbers:
+                    qty = max(qty, max(numbers))
+        return jsonify({"name": medicine_name, "qty": qty})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)})
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
