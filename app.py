@@ -7,7 +7,7 @@ import base64
 from PIL import Image
 import io
 
-pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+# pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 app = Flask(__name__)
 CORS(app)
